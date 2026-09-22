@@ -1,0 +1,90 @@
+[
+  {
+    "id": 1,
+    "title": "Welcome to Atlas",
+    "body": "Your team\u2019s knowledge, all in one place.\n\nUse this space to find answers, share what you know, and keep everyone moving in the same direction.\n\nGetting your bearings\nStart by exploring your team\u2019s spaces. Each space brings related documents together, from onboarding guides to technical references.\n\nMake yourself at home\nSearch for a topic, browse a space, or ask an administrator to add something you need. Keep documents focused, helpful, and easy to find.",
+    "space_id": 1,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 2,
+    "title": "Your first week: the onboarding guide",
+    "body": "Welcome to the team! This guide will help you settle in and get ready for your first week.\n\nDay one\nMeet your teammates, set up your accounts, and get familiar with our tools.\n\nThis week\nSchedule an introduction with your manager. Browse the team handbook and learn how we work together.\n\nNeed a hand?\nReach out to your manager if you need help getting access to a workspace.",
+    "space_id": 4,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 3,
+    "title": "Engineering handbook",
+    "body": "A shared reference for how we build and maintain our products.\n\nOur principles\nKeep changes small and reviewable. Write clear documentation. Prefer simple solutions that are easy to maintain.\n\nDevelopment workflow\nCreate a branch for your work, include meaningful tests, and request a review before merging.\n\nReleases\nVerify changes in a staging environment and document any operational considerations.",
+    "space_id": 2,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 4,
+    "title": "Design system foundations",
+    "body": "Our design foundations help us create a consistent product experience.\n\nTypography\nUse a clear hierarchy and readable text sizes. Keep interface language concise and helpful.\n\nColor and accessibility\nUse color with purpose. Always pair status colors with text labels and maintain readable contrast.\n\nComponents\nBuild with reusable components and document new patterns as they emerge.",
+    "space_id": 3,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 5,
+    "title": "How we work together",
+    "body": "Our working agreements are a starting point for thoughtful collaboration.\n\nCommunicate clearly\nShare context, make decisions visible, and document what others will need later.\n\nProtect focus time\nUse asynchronous updates when possible. Give meetings a clear purpose and an agenda.\n\nKeep learning\nAsk questions, share feedback, and make time to improve how we work.",
+    "space_id": 4,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 6,
+    "title": "Q4 product roadmap",
+    "body": "Working draft \u2014 this roadmap is being developed.\n\nDiscovery\nGather customer feedback and identify the problems that matter most.\n\nPlanning\nReview priorities with the team before confirming scope and timelines.",
+    "space_id": 3,
+    "status": "draft",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 7,
+    "title": "API authentication guide",
+    "body": "Working draft.\n\nOverview\nDocument the authentication flow, token lifecycle, and error handling here.\n\nReview checklist\nVerify examples and security considerations before publishing.",
+    "space_id": 2,
+    "status": "draft",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  },
+  {
+    "id": 8,
+    "title": "Writing great documentation",
+    "body": "Good documentation helps someone take their next step.\n\nStart with the reader\nExplain what the document is for and who will find it useful.\n\nMake it scannable\nUse short paragraphs, descriptive titles, and practical examples.\n\nKeep it current\nReview documents when workflows change. Archive or update outdated instructions.",
+    "space_id": 1,
+    "status": "published",
+    "author_id": 1,
+    "updated": "2026-09-14T16:53:05+00:00",
+    "source_type": null,
+    "source_id": null
+  }
+]

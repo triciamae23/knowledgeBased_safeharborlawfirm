@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "name": "Getting started",
+    "icon": "compass"
+  },
+  {
+    "id": 2,
+    "name": "Engineering",
+    "icon": "code"
+  },
+  {
+    "id": 3,
+    "name": "Product & design",
+    "icon": "layers"
+  },
+  {
+    "id": 4,
+    "name": "People & culture",
+    "icon": "users"
+  }
+]
