@@ -16,12 +16,34 @@ The configured project is already populated. `supabase/atlas_schema.sql` describ
 
 ## Access and storage
 
-- Home topics, page listings, search results, and direct page reads respect enabled folders.
-- Readers can view published pages only in their enabled folders. Administrators manage all pages and account permissions.
-- Folder grants are saved atomically and checked on each request.
+- The sidebar and Home topics show enabled departments. The **Folders** dropdown beside **Home** and **Workspace** lists accessible folders.
+- Readers can view published pages only when the folder is individually enabled and belongs to an enabled department. Administrators manage all pages, department mappings, and account permissions. The department named **Admin** does not grant the administrator role.
+- Department and folder grants are saved together atomically and checked on each request, including direct links, images, attachments, and both chat endpoints.
 - Sessions are stored as token hashes in Supabase, persist across server restarts, and expire after 24 hours. Logout and account deletion revoke access.
 - Browser clients cannot directly read the database tables. The backend uses a server-side key, with no local data fallback during outages.
 - Accounts use the existing application login system; they are not Supabase Auth accounts.
+
+### Configure department access
+
+The ten department names come from the Category column of `KB Category.xlsx`: Leadership, Attorney, Paralegal, CEC, Intake, VA, Admin, Operation Support, HR, and Accounting. The spreadsheet is reference data; names, emails, remarks, and blank category cells do not automatically create accounts or grant access.
+
+After restarting the server and refreshing the browser:
+
+1. Open **Administration → Department folders → Assign folders**. A folder can belong to several departments. New folders are available from the top **Folders → Create folder** menu and start without a department assignment.
+2. Under **People & permissions**, select a reader’s access button. Enable their departments and individual folders, then select **Save access**. Existing folder selections are retained for review, but existing readers have no document access until an administrator assigns departments.
+3. A reader sees only their enabled departments and the intersection of mapped and individually enabled folders. Removing either grant or removing a folder from a department takes effect on the next server request. Already downloaded content cannot be recalled.
+
+No schema migration is required. Department mappings are JSON arrays in `kb_settings` keys `department_folders:<department-id>`. Each `department_access:<user-id>` value stores both `department_ids` and `folder_ids` as one JSON object. This value is authoritative when present; `kb_users.folder_ids` supplies legacy folder selections only before the first department access save. Bootstrap returns only the public workspace name from settings, never other users’ grants. Changes are stored in Supabase and persist across restarts.
+
+### Reader edits and approval
+
+In **Administration → People & permissions**, open a reader’s access settings and enable **Allow edits for admin approval**. Existing readers default to view-only. The setting can also be selected when creating a reader account. It never permits direct publishing, creating pages, moving pages between folders, or editing inaccessible/unpublished pages.
+
+Enabled readers select **Edit document**, then **Submit for approval**. Their proposed title, formatted content, and attachments are stored separately from the published document. The original remains visible to other readers and is the only version used by search and chat. **My submissions** shows the reader’s own submission status while they retain folder access.
+
+Administrators use **Approvals** to compare the original and proposed versions, then **Approve & publish** or **Reject**. Rejection leaves the document unchanged. If the document changed or was deleted after submission, approval refuses to overwrite it and the reader must submit a new edit from the latest version. Disabling reader editing blocks new submissions immediately; an administrator can still decide already-submitted changes.
+
+The `can_submit_edits` boolean is stored with each reader’s access settings. Revision snapshots and decisions are stored in private `kb_settings` rows under `revision:<random-id>`; no schema migration is needed. Reviews claim the pending submission before publishing and use a conditional document update to prevent overwriting concurrent changes. If storage fails after approval starts, the queue exposes **Retry approval**, which can finish recording a successful publication without applying the update again.
 
 The editable app library contains the migrated pages, including 515 SweetProcess documents. Full source JSON, HTML, source folder hierarchy, and media references remain in the Supabase source archive. The app retains its existing primary-folder model. Media binaries are not stored locally or copied to Supabase Storage by the export tool.
 

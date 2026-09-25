@@ -9,7 +9,8 @@ class FakeSupabase(SupabaseStore):
             'kb_users':[{'id':1,'name':'Test Admin','email':'admin@atlas.local','password':password,'role':'admin','folder_ids':[]}],
             'kb_spaces':[{'id':i,'name':'Folder '+str(i),'icon':'folder'} for i in range(1,5)],
             'kb_documents':[{'id':i,'title':'Document '+str(i),'body':'Example body','space_id':f,'author_id':1,'status':'draft' if i in (6,7) else 'published','updated':'2026-09-15T00:00:00+00:00'} for i,f in enumerate((1,4,2,3,4,3,2,1),1)],
-            'kb_settings':[{'key':'workspace_name','value':'Atlas'}],
+            'kb_settings':[{'key':'workspace_name','value':'Atlas'},
+                           {'key':'department_folders:leadership','value':'[1,2,3,4]'}],
             'kb_sessions':[],
         }
         self.calls=[]
@@ -29,6 +30,7 @@ class FakeSupabase(SupabaseStore):
                 actual=str(row.get(key))
                 if op=='eq' and actual!=value: return False
                 if op=='in' and actual not in value.strip('()').split(','): return False
+                if op=='like' and value.endswith('*') and not actual.startswith(value[:-1]): return False
                 if op=='gt' and actual<=value: return False
                 if op=='lt' and actual>=value: return False
             return True

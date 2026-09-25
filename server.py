@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 import secrets
+import revisions
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -17,6 +18,52 @@ from supabase_store import SupabaseStore, StorageError, parse_timestamp
 
 ROOT = Path(__file__).resolve().parent
 STORE = None
+DEPARTMENTS = [
+    {'id': name.lower().replace(' ', '-'), 'name': name}
+    for name in ('Leadership', 'Attorney', 'Paralegal', 'CEC', 'Intake', 'VA',
+                 'Admin', 'Operation Support', 'HR', 'Accounting')
+]
+
+
+def department_setting(key, default):
+    row = STORE.one('kb_settings', {'key': 'eq.'+key}, order='key.asc')
+    return json.loads(row['value']) if row else default
+
+
+def departments():
+    keys = ['department_folders:'+d['id'] for d in DEPARTMENTS]
+    mappings = {r['key']:json.loads(r['value']) for r in
+                STORE.rows('kb_settings', {'key':'in.('+','.join(keys)+')'}, order='key.asc')}
+    return [{**d, 'folder_ids': mappings.get('department_folders:'+d['id'], [])} for d in DEPARTMENTS]
+
+
+def validated_departments(ids):
+    if not isinstance(ids, list) or any(not isinstance(i, str) for i in ids):
+        raise ValueError('Select valid departments.')
+    if not set(ids).issubset({d['id'] for d in DEPARTMENTS}):
+        raise ValueError('Select valid departments.')
+    return sorted(set(ids))
+
+
+def save_departments(user_id, ids, folders, can_submit_edits=False):
+    STORE.upsert('kb_settings', {'key': 'department_access:'+str(user_id),
+                               'value': json.dumps({'department_ids':ids, 'folder_ids':folders,
+                                                    'can_submit_edits':can_submit_edits})}, 'key')
+
+
+def assigned_access(user):
+    access = department_setting('department_access:'+str(user['id']),
+                                {'department_ids':[], 'folder_ids':user['folder_ids']})
+    return {**user, 'department_ids':access['department_ids'], 'folder_ids':access['folder_ids'],
+            'can_submit_edits':access.get('can_submit_edits') is True}
+
+
+def user_access(user):
+    user = assigned_access(user)
+    if user['role'] != 'admin':
+        mapped = {f for d in departments() if d['id'] in user['department_ids'] for f in d['folder_ids']}
+        user['folder_ids'] = sorted(mapped.intersection(user['folder_ids']))
+    return user
 
 
 def utcnow():
@@ -29,7 +76,7 @@ def password_hash(password, salt=None):
 
 
 def public_user(user):
-    return {key:user[key] for key in ('id','name','email','role','folder_ids')}
+    return {key:user[key] for key in ('id','name','email','role','folder_ids','department_ids','can_submit_edits')}
 
 
 def initialize():
@@ -59,6 +106,7 @@ def document_rows(user, doc_id=None):
         filters.update(status='eq.published',space_id='in.('+','.join(map(str,user['folder_ids']))+')')
     rows = STORE.rows('kb_documents',filters,select='*,author:kb_users!author_id(name),space:kb_spaces!space_id(name)',order='updated.desc,id.desc')
     for row in rows:
+        row['version'] = revisions.version(row)
         row['author'] = row['author']['name']
         row['space'] = row['space']['name']
         row['updated'] = parse_timestamp(row['updated']).astimezone(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
@@ -121,7 +169,8 @@ class Handler(BaseHTTPRequestHandler):
         if not session:
             return None
         # Always load current permissions; no session-cached role or folder grants.
-        return STORE.one('kb_users',{'id':'eq.'+str(session['user_id'])},select='id,name,email,role,folder_ids')
+        user = STORE.one('kb_users',{'id':'eq.'+str(session['user_id'])},select='id,name,email,role,folder_ids')
+        return user_access(user) if user else None
 
     def do_GET(self):
         path = self.path.split('?')[0]
@@ -148,7 +197,20 @@ class Handler(BaseHTTPRequestHandler):
                     spaces = STORE.rows('kb_spaces',{'id':'in.('+','.join(map(str,user['folder_ids']))+')'})
                 else:
                     spaces = []
-                return self.send_json({'user':public_user(user),'documents':document_rows(user),'spaces':spaces,'settings':{r['key']:r['value'] for r in STORE.rows('kb_settings',order='key.asc')}})
+                visible_departments = departments()
+                if user['role'] != 'admin':
+                    visible_departments = [{**d, 'folder_ids': [f for f in d['folder_ids'] if f in user['folder_ids']]}
+                                           for d in visible_departments if d['id'] in user['department_ids']]
+                return self.send_json({'user':public_user(user),'documents':document_rows(user),'spaces':spaces,
+                                       'departments':visible_departments,
+                                       'settings':{r['key']:r['value'] for r in STORE.rows('kb_settings',{'key':'eq.workspace_name'},order='key.asc')}})
+            if path == '/api/revisions':
+                return self.send_json(revisions.listing(STORE,user))
+            if path.startswith('/api/revisions/'):
+                _, revision = revisions.get(STORE,path.rsplit('/',1)[-1])
+                if not revisions.visible(user,revision):
+                    return self.send_json({'error':'Submission not found.'},404)
+                return self.send_json(revision)
             if path.startswith('/api/documents/') and '/images/' in path:
                 parts=path.strip('/').split('/')
                 try:
@@ -208,7 +270,8 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/users':
                 if user['role']!='admin':
                     return self.send_json({'error':'Administrator access required.'},403)
-                return self.send_json(STORE.rows('kb_users',select='id,name,email,role,folder_ids'))
+                users = STORE.rows('kb_users',select='id,name,email,role,folder_ids')
+                return self.send_json([assigned_access(u) for u in users])
             return self.send_json({'error':'Not found'},404)
         except StorageError as error:
             return self.send_json({'error':str(error)},error.status)
@@ -272,6 +335,10 @@ class Handler(BaseHTTPRequestHandler):
                 result['title']=first['title'] if first else ''
                 result['blocks']=chat_source_blocks(first) if first else []
                 return self.send_json(result)
+            if path == '/api/revisions':
+                return self.send_json(revisions.submit(STORE,user,data))
+            if path == '/api/revisions/review':
+                return self.send_json(revisions.decide(STORE,user,data))
             if user['role']!='admin':
                 return self.send_json({'error':'Administrator access required.'},403)
             if path=='/api/documents':
@@ -298,6 +365,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not name or len(name)>80:
                     raise ValueError('Enter a folder name (up to 80 characters).')
                 STORE.insert('kb_spaces',{'name':name,'icon':'folder'})
+            elif path=='/api/departments/folders':
+                ids = validated_departments([data.get('id')])
+                folders = validated_folders(data.get('folder_ids'))
+                STORE.upsert('kb_settings', {'key':'department_folders:'+ids[0], 'value':json.dumps(folders)}, 'key')
             elif path=='/api/settings':
                 name = str(data.get('workspace_name','')).strip()
                 if not name or len(name)>40:
@@ -310,15 +381,30 @@ class Handler(BaseHTTPRequestHandler):
                 if not name or '@' not in email or len(password)<10 or role not in ('admin','reader'):
                     raise ValueError('Enter a name, valid email, and a password of at least 10 characters.')
                 folders = validated_folders(data.get('folder_ids',[]))
-                STORE.insert('kb_users',{'name':name,'email':email.lower(),'password':password_hash(password),'role':role,'folder_ids':folders if role=='reader' else []})
+                department_ids = validated_departments(data.get('department_ids', []))
+                can_submit_edits = data.get('can_submit_edits',False)
+                if type(can_submit_edits) is not bool:
+                    raise ValueError('Select a valid reader editing permission.')
+                created = STORE.insert('kb_users',{'name':name,'email':email.lower(),'password':password_hash(password),'role':role,'folder_ids':folders if role=='reader' else []})
+                if (department_ids or can_submit_edits) and role == 'reader':
+                    try:
+                        save_departments(created['id'], department_ids, folders, can_submit_edits)
+                    except StorageError:
+                        raise StorageError('Account created, but access could not be saved. Refresh People & permissions and assign access to the existing account. The reader has no document access.') from None
             elif path=='/api/users/access':
                 user_id = int(data['id'])
-                target = STORE.one('kb_users',{'id':'eq.'+str(user_id)},select='id,role')
+                target = STORE.one('kb_users',{'id':'eq.'+str(user_id)},select='id,role,folder_ids')
                 if not target:
                     return self.send_json({'error':'User not found.'},404)
                 if target['role']=='admin':
                     raise ValueError('Administrators have access to all folders.')
-                STORE.update('kb_users',{'id':'eq.'+str(user_id)},{'folder_ids':validated_folders(data.get('folder_ids'))})
+                folders = validated_folders(data.get('folder_ids'))
+                department_ids = validated_departments(data.get('department_ids', assigned_access(target)['department_ids']))
+                can_submit_edits = data.get('can_submit_edits',assigned_access(target)['can_submit_edits'])
+                if type(can_submit_edits) is not bool:
+                    raise ValueError('Select a valid reader editing permission.')
+                # One row replaces both sets of grants atomically.
+                save_departments(user_id, department_ids, folders, can_submit_edits)
             elif path=='/api/users/delete':
                 user_id = int(data['id'])
                 if user_id==user['id']:
@@ -326,6 +412,7 @@ class Handler(BaseHTTPRequestHandler):
                 if STORE.one('kb_documents',{'author_id':'eq.'+str(user_id)},select='id'):
                     raise ValueError('This user owns documents and cannot be removed.')
                 STORE.delete('kb_users',{'id':'eq.'+str(user_id)})
+                STORE.delete('kb_settings',{'key':'eq.department_access:'+str(user_id)})
             else:
                 return self.send_json({'error':'Not found'},404)
             return self.send_json({'ok':True})

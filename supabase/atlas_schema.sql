@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS public.kb_documents (
  UNIQUE (source_type, source_id)
 );
 CREATE INDEX IF NOT EXISTS kb_documents_folder_status ON public.kb_documents(space_id,status);
+-- department_folders:<id> stores a JSON folder ID array.
+-- department_access:<user-id> stores {department_ids: [...], folder_ids: [...]}.
+-- Both grant lists are replaced atomically; kb_users.folder_ids is legacy input
+-- only until a department_access record exists. No department grant means no access.
 CREATE TABLE IF NOT EXISTS public.kb_settings (key text PRIMARY KEY,value text NOT NULL);
 CREATE TABLE IF NOT EXISTS public.kb_sessions (
  token_hash text PRIMARY KEY,
