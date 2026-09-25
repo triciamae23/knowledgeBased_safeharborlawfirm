@@ -1,4 +1,4 @@
-# Atlas knowledge base
+# Knowledge base app
 
 Atlas uses Supabase exclusively for users, password hashes, sessions, folders, documents, folder permissions, and workspace settings. The Python backend keeps the service key private and enforces access before querying Supabase.
 
