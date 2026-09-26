@@ -1,0 +1,6 @@
+.env
+.env.*
+backups/
+sweetprocess_data/
+__pycache__/
+.DS_Store

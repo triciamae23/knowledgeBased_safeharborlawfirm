@@ -14,6 +14,27 @@ Open http://127.0.0.1:8000. Existing accounts and credentials are stored in Supa
 
 The configured project is already populated. `supabase/atlas_schema.sql` describes the app's `kb_*` tables. `supabase/sweetprocess_schema.sql` describes the separate source archive tables. These schema files do not create starter accounts.
 
+## Deploy to Vercel
+
+Use the repository root as the Vercel **Root Directory**, choose **Other** as the
+framework preset, and leave Build Command and Output Directory overrides disabled.
+Do not set the root or output directory to `static`: the app needs its Python API.
+`api/index.py` exposes the existing HTTP handler as a Vercel Function, and
+`vercel.json` routes page, asset, and API requests to it.
+
+In the project's Environment Variables, configure `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY`. For home chat, also configure
+`AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, and `AZURE_OPENAI_DEPLOYMENT`.
+Enable the variables for the deployment environment you use, then redeploy.
+The local `.env` is excluded from deployments; Vercel does not inherit its values.
+The SweetProcess token is only needed for the separate export tooling.
+
+After deployment, `/` should return the login page, `/app.js` should return
+JavaScript, and `/api/bootstrap` without a session should return JSON with HTTP
+401. A Vercel `NOT_FOUND` page means the request did not reach the app: check the
+deployed commit, project root, routing configuration, and production domain
+assignment. A JSON 503 instead indicates a backend configuration or storage issue.
+
 ## Access and storage
 
 - The sidebar and Home topics show enabled departments. The **Folders** dropdown beside **Home** and **Workspace** lists accessible folders.
